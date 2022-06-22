@@ -1,0 +1,2 @@
+- [Install ODF without the OpenShift Web UI](https://red-hat-storage.github.io/ocs-training/training/ocs4/odf4-install-no-ui.html)
+- [Deployment of ODF with ArgoCD](https://github.com/red-hat-storage/argocd-odf)

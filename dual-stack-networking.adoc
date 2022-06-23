@@ -1,0 +1,748 @@
+= Dual Stack Networking
+
+To configure dual stack, create a patch to apply the IPv6 network information.  These default values were used.  This network is private to the internal SDN, and it should not overlap with any external networks that may need to be reached by pods running in OpenShift.
+
+[source,bash]
+----
+- op: add
+  path: /spec/clusterNetwork/-
+  value: 
+    cidr: fd01::/48
+    hostPrefix: 64
+- op: add
+  path: /spec/serviceNetwork/-
+  value: fd02::/112 
+----
+
+Apply the update by patching the ClusterNetwork Operator configuration.
+
+[source,bash]
+----
+[root@sv7-ocp-bootstrap dualstack]# oc patch network.config.openshift.io cluster --type='json' --patch-file dualstacknet.yaml
+network.config.openshift.io/cluster patched
+----
+
+Check the result by looking at the network Status to see the new IPv6 information.
+
+[source,bash]
+----
+[root@sv7-ocp-bootstrap ~]# oc describe network cluster
+Name:         cluster
+Namespace:
+Labels:       <none>
+Annotations:  <none>
+API Version:  config.openshift.io/v1
+Kind:         Network
+...
+...
+Status:
+  Cluster Network:
+    Cidr:               172.30.0.0/16
+    Host Prefix:        23
+    Cidr:               fd01::/48
+    Host Prefix:        64
+  Cluster Network MTU:  1400
+  Network Type:         OVNKubernetes
+  Service Network:
+    172.31.0.0/16
+    fd02::/112
+Events:  <none>
+----
+
+Configuration files:
+`10.70.2.60:/home/gimo/clusterconfigs/clusterconfigs/dualstack`
+
+= NIC Bonding
+
+== MachineConfig
+
+To configure bonding on the primary network (i.e. the network corresponding to `machineNetwork` at installation) must be done using `MachineConfig` because the nodes will need to be rebooted to properly handle the network.
+
+NOTE: All nodes to be managed by the `MachineConfig` must have the same configuration (i.e. for bonding, all interface names must be identical), otherwise, a custom `MachineConfig` will be required for each unique configuration.  The `master` and `worker` nodes have different interfaces enabled, so the proper configuration must be created to match the appropriate interaces.
+
+Create the bonding files necessary for the desired configuration on the master and worker nodes
+[source,bash]
+----
+# This is the WORKER node configuration
+[root@sv7-ocp-bootstrap machineconfig]# cat bond0.nmconnection
+[connection]
+id=bond0
+type=bond
+interface-name=bond0
+autoconnect=true
+connection.autoconnect-slaves=1
+
+[ethernet]
+mtu=1500
+
+[bond]
+mode=active-backup
+miimon=100
+fail_over_mac=1
+
+[ipv4]
+method=auto
+dhcp-timeout=2147483647
+
+[ipv6]
+method=auto
+dhcp-timeout=2147483647
+
+[root@sv7-ocp-bootstrap machineconfig]# cat enp216s0f0.nmconnection
+[connection]
+id=enp216s0f0
+type=ethernet
+interface-name=enp216s0f0
+master=bond0
+slave-type=bond
+autoconnect=true
+
+[ethernet]
+mtu=1500
+
+[root@sv7-ocp-bootstrap machineconfig]# cat enp216s0f1.nmconnection
+[connection]
+id=enp216s0f1
+type=ethernet
+interface-name=enp216s0f1
+master=bond0
+slave-type=bond
+autoconnect=true
+
+[ethernet]
+mtu=1500
+
+# This is the MASTER node configuration
+[root@sv7-ocp-bootstrap master]# cat bond0.nmconnection
+[connection]
+id=bond0
+type=bond
+interface-name=bond0
+autoconnect=true
+connection.autoconnect-slaves=1
+
+[ethernet]
+mtu=1500
+
+[bond]
+mode=active-backup
+miimon=100
+fail_over_mac=1
+
+[ipv4]
+method=auto
+dhcp-timeout=2147483647
+
+[ipv6]
+method=auto
+dhcp-timeout=2147483647
+
+[root@sv7-ocp-bootstrap master]# cat ens1f2.nmconnection
+[connection]
+id=ens1f2
+type=ethernet
+interface-name=ens1f2
+master=bond0
+slave-type=bond
+autoconnect=true
+
+[ethernet]
+mtu=1500
+
+[root@sv7-ocp-bootstrap master]# cat ens1f3.nmconnection
+[connection]
+id=ens1f3
+type=ethernet
+interface-name=ens1f3
+master=bond0
+slave-type=bond
+autoconnect=true
+
+[ethernet]
+mtu=1500
+----
+
+Encode the files to be used in the `MachineConfig`
+[source,bash]
+----
+# This is the WORKER node configuration
+[root@sv7-ocp-bootstrap machineconfig]# cat bond0.nmconnection | base64 -w0
+W2Nvbm5lY3Rpb25dCmlkPWJvbmQwCnR5cGU9Ym9uZAppbnRlcmZhY2UtbmFtZT1ib25kMAphdXRvY29ubmVjdD10cnVlCmNvbm5lY3Rpb24uYXV0b2Nvbm5lY3Qtc2xhdmVzPTEKCltldGhlcm5ldF0KbXR1PTE1MDAKCltib25kXQptb2RlPWFjdGl2ZS1iYWNrdXAKbWlpbW9uPTEwMApmYWlsX292ZXJfbWFjPTEKCltpcHY0XQptZXRob2Q9YXV0bwpkaGNwLXRpbWVvdXQ9MjE0NzQ4MzY0NwoKW2lwdjZdCm1ldGhvZD1hdXRvCmRoY3AtdGltZW91dD0yMTQ3NDgzNjQ3Cg==
+
+[root@sv7-ocp-bootstrap machineconfig]# cat enp216s0f0.nmconnection | base64 -w0
+W2Nvbm5lY3Rpb25dCmlkPWVucDIxNnMwZjAKdHlwZT1ldGhlcm5ldAppbnRlcmZhY2UtbmFtZT1lbnAyMTZzMGYwCm1hc3Rlcj1ib25kMApzbGF2ZS10eXBlPWJvbmQKYXV0b2Nvbm5lY3Q9dHJ1ZQoKW2V0aGVybmV0XQptdHU9MTUwMAo=
+
+[root@sv7-ocp-bootstrap machineconfig]# cat enp216s0f1.nmconnection | base
+W2Nvbm5lY3Rpb25dCmlkPWVucDIxNnMwZjEKdHlwZT1ldGhlcm5ldAppbnRlcmZhY2UtbmFtZT1lbnAyMTZzMGYxCm1hc3Rlcj1ib25kMApzbGF2ZS10eXBlPWJvbmQKYXV0b2Nvbm5lY3Q9dHJ1ZQoKW2V0aGVybmV0XQptdHU9MTUwMAo=
+
+# This is the MASTER node configuration
+[root@sv7-ocp-bootstrap master]# cat bond0.nmconnection | base64 -w0
+W2Nvbm5lY3Rpb25dCmlkPWJvbmQwCnR5cGU9Ym9uZAppbnRlcmZhY2UtbmFtZT1ib25kMAphdXRvY29ubmVjdD10cnVlCmNvbm5lY3Rpb24uYXV0b2Nvbm5lY3Qtc2xhdmVzPTEKCltldGhlcm5ldF0KbXR1PTE1MDAKCltib25kXQptb2RlPWFjdGl2ZS1iYWNrdXAKbWlpbW9uPTEwMApmYWlsX292ZXJfbWFjPTEKCltpcHY0XQptZXRob2Q9YXV0bwpkaGNwLXRpbWVvdXQ9MjE0NzQ4MzY0NwoKW2lwdjZdCm1ldGhvZD1hdXRvCmRoY3AtdGltZW91dD0yMTQ3NDgzNjQ3Cg==
+
+[root@sv7-ocp-bootstrap master]# cat ens1f2.nmconnection | base64 -w0
+W2Nvbm5lY3Rpb25dCmlkPWVuczFmMgp0eXBlPWV0aGVybmV0CmludGVyZmFjZS1uYW1lPWVuczFmMgptYXN0ZXI9Ym9uZDAKc2xhdmUtdHlwZT1ib25kCmF1dG9jb25uZWN0PXRydWUKCltldGhlcm5ldF0KbXR1PTE1MDAK
+
+[root@sv7-ocp-bootstrap master]# cat ens1f3.nmconnection | base64 -w0
+W2Nvbm5lY3Rpb25dCmlkPWVuczFmMwp0eXBlPWV0aGVybmV0CmludGVyZmFjZS1uYW1lPWVuczFmMwptYXN0ZXI9Ym9uZDAKc2xhdmUtdHlwZT1ib25kCmF1dG9jb25uZWN0PXRydWUKCltldGhlcm5ldF0KbXR1PTE1MDAK
+----
+
+Create the `MachineConfig` using the encoded strings for the configuration files
+[source,bash]
+----
+# This is the WORKER node configuration
+[root@sv7-ocp-bootstrap machineconfig]# cat 11-worker-bonding.yaml
+apiVersion: machineconfiguration.openshift.io/v1
+kind: MachineConfig
+metadata:
+  labels:
+    machineconfiguration.openshift.io/role: worker
+  name: 11-worker-bonding
+spec:
+  config:
+    ignition:
+      version: 3.2.0
+    storage:
+      files:
+      - contents:
+          source: data:;base64,W2Nvbm5lY3Rpb25dCmlkPWJvbmQwCnR5cGU9Ym9uZAppbnRlcmZhY2UtbmFtZT1ib25kMAphdXRvY29ubmVjdD10cnVlCmNvbm5lY3Rpb24uYXV0b2Nvbm5lY3Qtc2xhdmVzPTEKCltldGhlcm5ldF0KbXR1PTE1MDAKCltib25kXQptb2RlPWFjdGl2ZS1iYWNrdXAKbWlpbW9uPTEwMApmYWlsX292ZXJfbWFjPTEKCltpcHY0XQptZXRob2Q9YXV0bwpkaGNwLXRpbWVvdXQ9MjE0NzQ4MzY0NwoKW2lwdjZdCm1ldGhvZD1hdXRvCmRoY3AtdGltZW91dD0yMTQ3NDgzNjQ3Cg==
+        filesystem: root
+        mode: 384
+        path: /etc/NetworkManager/system-connections/bond0.nmconnection
+      - contents:
+          source: data:;base64,W2Nvbm5lY3Rpb25dCmlkPWVucDIxNnMwZjAKdHlwZT1ldGhlcm5ldAppbnRlcmZhY2UtbmFtZT1lbnAyMTZzMGYwCm1hc3Rlcj1ib25kMApzbGF2ZS10eXBlPWJvbmQKYXV0b2Nvbm5lY3Q9dHJ1ZQoKW2V0aGVybmV0XQptdHU9MTUwMAo=
+        filesystem: root
+        mode: 384
+        path: /etc/NetworkManager/system-connections/enp216s0f0.nmconnection
+      - contents:
+          source: data:;base64,W2Nvbm5lY3Rpb25dCmlkPWVucDIxNnMwZjEKdHlwZT1ldGhlcm5ldAppbnRlcmZhY2UtbmFtZT1lbnAyMTZzMGYxCm1hc3Rlcj1ib25kMApzbGF2ZS10eXBlPWJvbmQKYXV0b2Nvbm5lY3Q9dHJ1ZQoKW2V0aGVybmV0XQptdHU9MTUwMAo=
+        filesystem: root
+        mode: 384
+        path: /etc/NetworkManager/system-connections/enp216s0f1.nmconnection
+
+# This is the MASTER node configuration
+apiVersion: machineconfiguration.openshift.io/v1
+kind: MachineConfig
+metadata:
+  labels:
+    machineconfiguration.openshift.io/role: master
+  name: 11-master-bonding
+spec:
+  config:
+    ignition:
+      version: 3.2.0
+    storage:
+      files:
+      - contents:
+          source: data:;base64,W2Nvbm5lY3Rpb25dCmlkPWJvbmQwCnR5cGU9Ym9uZAppbnRlcmZhY2UtbmFtZT1ib25kMAphdXRvY29ubmVjdD10cnVlCmNvbm5lY3Rpb24uYXV0b2Nvbm5lY3Qtc2xhdmVzPTEKCltldGhlcm5ldF0KbXR1PTE1MDAKCltib25kXQptb2RlPWFjdGl2ZS1iYWNrdXAKbWlpbW9uPTEwMApmYWlsX292ZXJfbWFjPTEKCltpcHY0XQptZXRob2Q9YXV0bwpkaGNwLXRpbWVvdXQ9MjE0NzQ4MzY0NwoKW2lwdjZdCm1ldGhvZD1hdXRvCmRoY3AtdGltZW91dD0yMTQ3NDgzNjQ3Cg==
+        filesystem: root
+        mode: 384
+        path: /etc/NetworkManager/system-connections/bond0.nmconnection
+      - contents:
+          source: data:;base64,W2Nvbm5lY3Rpb25dCmlkPWVuczFmMgp0eXBlPWV0aGVybmV0CmludGVyZmFjZS1uYW1lPWVuczFmMgptYXN0ZXI9Ym9uZDAKc2xhdmUtdHlwZT1ib25kCmF1dG9jb25uZWN0PXRydWUKCltldGhlcm5ldF0KbXR1PTE1MDAK
+        filesystem: root
+        mode: 384
+        path: /etc/NetworkManager/system-connections/ens1f2.nmconnection
+      - contents:
+          source: data:;base64,W2Nvbm5lY3Rpb25dCmlkPWVuczFmMwp0eXBlPWV0aGVybmV0CmludGVyZmFjZS1uYW1lPWVuczFmMwptYXN0ZXI9Ym9uZDAKc2xhdmUtdHlwZT1ib25kCmF1dG9jb25uZWN0PXRydWUKCltldGhlcm5ldF0KbXR1PTE1MDAK
+        filesystem: root
+        mode: 384
+        path: /etc/NetworkManager/system-connections/ens1f3.nmconnection
+----
+
+Apply the `MachineConfig`
+[source,bash]
+----
+[root@sv7-ocp-bootstrap machineconfig]# oc create -f 11-worker-bonding.yaml
+machineconfig.machineconfiguration.openshift.io/11-worker-bonding created
+
+[root@sv7-ocp-bootstrap machineconfig]# oc create -f 11-master-bonding.yaml
+machineconfig.machineconfiguration.openshift.io/11-master-bonding created
+----
+
+Wait for the `MachineConfig` to rollout, reboot the nodes, and report the pool as UPDATED with the MACHINECOUNT = READYMACHINECOUNT = UPDATEDMACHINECOUNT
+[source,bash]
+----
+[root@sv7-ocp-bootstrap machineconfig]# oc get mcp worker
+NAME     CONFIG                                             UPDATED   UPDATING   DEGRADED   MACHINECOUNT   READYMACHINECOUNT   UPDATEDMACHINECOUNT   DEGRADEDMACHINECOUNT   AGE
+worker   rendered-worker-bddc08e9e4e23af0eb54eb7d7442060d   True      False      False      3              3                   3                     0                      13d
+
+[root@sv7-ocp-bootstrap worker]# oc get mcp master
+NAME     CONFIG                                             UPDATED   UPDATING   DEGRADED   MACHINECOUNT   READYMACHINECOUNT   UPDATEDMACHINECOUNT   DEGRADEDMACHINECOUNT   AGE
+master   rendered-master-d8c429bed66dd063853d2e025b6c88e8   True      False      False      3              3                   3                     0                      13d
+----
+
+Configuration files:
+`10.70.2.60:/home/gimo/clusterconfigs/clusterconfigs/machineconfig`
+
+== NMState
+
+With OpenShift 4.10 on Bare-Metal, Red Hat provides the `Kubernetes NMState Operator` which allows for managing NIC settings in a declarative manner. This operator should not be used to configure the primary NIC IP (i.e. bonding, teaming, etc.)
+
+Install the operator
+[source,bash]
+----
+[root@sv7-ocp-bootstrap clusterconfigs]# cat nmstate-operator.yaml
+apiVersion: v1
+kind: Namespace
+metadata:
+  labels:
+    kubernetes.io/metadata.name: openshift-nmstate
+    name: openshift-nmstate
+  name: openshift-nmstate
+spec:
+  finalizers:
+  - kubernetes
+---
+apiVersion: operators.coreos.com/v1
+kind: OperatorGroup
+metadata:
+  annotations:
+    olm.providedAPIs: NMState.v1.nmstate.io
+  generateName: openshift-nmstate-
+  name: openshift-nmstate-tn6k8
+  namespace: openshift-nmstate
+spec:
+  targetNamespaces:
+  - openshift-nmstate
+---
+apiVersion: operators.coreos.com/v1alpha1
+kind: Subscription
+metadata:
+  labels:
+    operators.coreos.com/kubernetes-nmstate-operator.openshift-nmstate: ""
+  name: kubernetes-nmstate-operator
+  namespace: openshift-nmstate
+spec:
+  channel: stable
+  installPlanApproval: Automatic
+  name: kubernetes-nmstate-operator
+  source: redhat-operators
+  sourceNamespace: openshift-marketplace
+----
+
+Apply the operator and check for proper installation of the operator
+[source,bash]
+----
+[root@sv7-ocp-bootstrap clusterconfigs]# oc apply -f nmstate-operator.yaml
+namespace/openshift-nmstate created
+operatorgroup.operators.coreos.com/openshift-nmstate-tn6k8 created
+subscription.operators.coreos.com/kubernetes-nmstate-operator created
+
+[root@sv7-ocp-bootstrap clusterconfigs]# oc get all -n openshift-nmstate
+NAME                                        READY   STATUS    RESTARTS        AGE
+pod/nmstate-cert-manager-85cc6f87bb-wz7gc   1/1     Running   0               5h38m
+pod/nmstate-handler-2h5d8                   1/1     Running   8 (3h24m ago)   4h16m
+pod/nmstate-handler-5vp5l                   1/1     Running   0               5h38m
+pod/nmstate-handler-9stsw                   1/1     Running   0               5h38m
+pod/nmstate-handler-hdkqb                   1/1     Running   0               5h38m
+pod/nmstate-handler-m8zns                   1/1     Running   0               5h38m
+pod/nmstate-handler-qw57n                   1/1     Running   0               5h38m
+pod/nmstate-operator-b8cb864c5-bwckh        1/1     Running   0               5h38m
+pod/nmstate-webhook-84766cf77d-8qgw7        1/1     Running   0               5h38m
+pod/nmstate-webhook-84766cf77d-v7v2t        1/1     Running   1 (5h37m ago)   5h38m
+
+NAME                      TYPE        CLUSTER-IP      EXTERNAL-IP   PORT(S)   AGE
+service/nmstate-webhook   ClusterIP   172.31.229.20   <none>        443/TCP   5h38m
+
+NAME                             DESIRED   CURRENT   READY   UP-TO-DATE   AVAILABLE   NODE SELECTOR                                          AGE
+daemonset.apps/nmstate-handler   6         6         6       6            6           beta.kubernetes.io/arch=amd64,kubernetes.io/os=linux   5h38m
+
+NAME                                   READY   UP-TO-DATE   AVAILABLE   AGE
+deployment.apps/nmstate-cert-manager   1/1     1            1           5h38m
+deployment.apps/nmstate-operator       1/1     1            1           5h38m
+deployment.apps/nmstate-webhook        2/2     2            2           5h38m
+
+NAME                                              DESIRED   CURRENT   READY   AGE
+replicaset.apps/nmstate-cert-manager-85cc6f87bb   1         1         1       5h38m
+replicaset.apps/nmstate-operator-b8cb864c5        1         1         1       5h38m
+replicaset.apps/nmstate-webhook-84766cf77d        2         2         2       5h38m
+
+[root@sv7-ocp-bootstrap clusterconfigs]# oc get csv -n openshift-nmstate
+NAME                                              DISPLAY                            VERSION               REPLACES                                  PHASE
+elasticsearch-operator.5.4.1-24                   OpenShift Elasticsearch Operator   5.4.1-24              elasticsearch-operator.5.4.0-152          Succeeded
+kubernetes-nmstate-operator.4.10.0-202205020604   Kubernetes NMState Operator        4.10.0-202205020604                                             Succeeded
+namespace-configuration-operator.v1.2.4           Namespace Configuration Operator   1.2.4                 namespace-configuration-operator.v1.2.3   Succeeded
+----
+
+After successful installation of the operator, create appropriate `NodeNetworkConfigurationPolicy` for each OpenShift node.  Each node requires its own policy configuration in order to manage static IP assignments.
+
+For the compute nodes, to configurate VLAN 708 (Mellanox) network, it is necessary to create the bonded interface first, and then a vlan-tagged interface must be created from the original bonded interface in order to work properly.  Ensure to set the nodeSelector properly for each `NodeNetworkConfiguration` policy created to ensure it is applied to the appropriate node.
+[source,bash]
+----
+[root@sv7-ocp-bootstrap clusterconfigs]# cat nmstate-sv7-ocp-cmp01-vlan708.yaml
+apiVersion: nmstate.io/v1
+kind: NodeNetworkConfigurationPolicy
+metadata:
+  name: sv7-ocp-cmp01-vlan708-bond
+spec:
+  desiredState:
+    interfaces:
+    - name: bond0
+      description: Bond with ports ens1f0 and ens1f1
+      type: bond
+      state: up
+      link-aggregation:
+        mode: active-backup
+        options:
+          miimon: "140"
+        port:
+        - ens1f0
+        - ens1f1
+      ipv4:
+        dhcp: false
+        enabled: false
+      mtu: 1450
+    - name: bond0.708
+      description: VLAN using bond0
+      type: vlan
+      state: up
+      vlan:
+        base-iface: bond0
+        id: 708
+      ipv4:
+        enabled: true
+        address:
+        - ip: 10.70.9.64
+          prefix-length: 23
+        enabled: true
+      ipv6:
+        dhcp: true
+        enabled: true
+  nodeSelector:
+    kubernetes.io/hostname: sv7-ocp-cmp01.sv7.eng.gigamon.com
+----
+
+Create the `NodeNetworkConfigurationPolicy`, and then validate that the policy is applied correctly.  When the policy has been correctly applied, you will see `Available` for the `NodeNetworkConfigurationPolicy` and the `NodeNetworkConfigurationEnactment`.
+[source,bash]
+----
+[root@sv7-ocp-bootstrap clusterconfigs]# oc create -f nmstate-sv7-ocp-cmp01.yaml
+nodenetworkconfigurationpolicy.nmstate.io/sv7-ocp-cmp01-vlan708-bond created
+
+[root@sv7-ocp-bootstrap clusterconfigs]# oc get nncp
+NAME                         STATUS
+sv7-ocp-cmp01-vlan708-bond   
+
+[root@sv7-ocp-bootstrap clusterconfigs]# oc get nnce
+NAME                                                           STATUS
+sv7-ocp-cmp01.sv7.eng.gigamon.com.sv7-ocp-cmp01-vlan708-bond   Available
+
+[root@sv7-ocp-bootstrap clusterconfigs]# oc get nncp
+NAME                         STATUS
+sv7-ocp-cmp01-vlan708-bond   Available
+----
+
+Validate the new interface is available and working on the node
+[source,bash]
+----
+[root@sv7-ocp-bootstrap clusterconfigs]# ssh core@sv7-ocp-cmp01.sv7.eng.gigamon.com ip a s bond0.708
+31: bond0.708@bond0: <BROADCAST,MULTICAST,UP,LOWER_UP> mtu 1450 qdisc noqueue state UP group default qlen 1000
+    link/ether 0c:42:a1:4d:e4:02 brd ff:ff:ff:ff:ff:ff
+    inet 10.70.9.64/23 brd 10.70.9.255 scope global noprefixroute bond0.708
+       valid_lft forever preferred_lft forever
+    inet6 fe80::e42:a1ff:fe4d:e402/64 scope link noprefixroute
+       valid_lft forever preferred_lft forever
+
+[root@sv7-ocp-bootstrap clusterconfigs]# ssh core@sv7-ocp-cmp01.sv7.eng.gigamon.com ping -c 5 10.70.9.64
+PING 10.70.9.64 (10.70.9.64) 56(84) bytes of data.
+64 bytes from 10.70.9.64: icmp_seq=1 ttl=64 time=0.037 ms
+64 bytes from 10.70.9.64: icmp_seq=2 ttl=64 time=0.057 ms
+64 bytes from 10.70.9.64: icmp_seq=3 ttl=64 time=0.053 ms
+64 bytes from 10.70.9.64: icmp_seq=4 ttl=64 time=0.019 ms
+64 bytes from 10.70.9.64: icmp_seq=5 ttl=64 time=0.055 ms
+
+--- 10.70.9.64 ping statistics ---
+5 packets transmitted, 5 received, 0% packet loss, time 4072ms
+rtt min/avg/max/mdev = 0.019/0.044/0.057/0.015 ms
+----
+
+Configuration files:
+`10.70.2.60:/home/gimo/clusterconfigs/clusterconfigs/nmstate`
+
+= Macvlan configuration
+
+To enable macvlan using the Multus CNI plugin, modify `networks.operator.openshift.io/cluster`.  Add the `additionalNetworks` configuration under the object spec.  This configuration is a List, so multiple networks may be configured as needed.  The configuration is `namespace specific`.  An entry should be entered for each project that needs to utilize the `additionalNetwork`.  
+
+For the IPAM configuration, the `type: whereabouts` is a special plugin that acts like DHCP in-lieu of a DHCP solution on the connected VLAN.  The range is set for all of VLAN 708 and then the bottom have of the VLAN is excluded to ensure no collisions between OpenShift on OpenStack both using this VLAN.  OpenStack should be restricted to the bottom half of the VLAN.  Additionally, the static IPs used for the bonded interfaces on the nodes will also be excluded.
+
+[source,bash]
+----
+spec:
+  additionalNetworks:
+  - name: vlan708
+    namespace: sample-app
+    type: Raw
+    rawCNIConfig: |-
+      {
+        "cniVersion": "0.3.1",
+        "name": "vlan708-static",
+        "type": "macvlan",
+        "master": "bond0.708",
+        "mode": "bridge",
+        "ipam": {
+          "type": "whereabouts",
+          "range": "10.70.8.0/23",
+          "exclude": [
+             "10.70.8.0/24",
+             "10.70.9.64/32",
+             "10.70.9.65/32",
+             "10.70.9.66/32"
+          ]
+        }
+      }
+----
+
+The `ClusterNetworkOperator` will detect the new configuration and create a `NetworkAttachmentDefinition` for each `additionalNetwork` defined.  NOTE: The `name` used in the configuration (not the rawCNIConfig name) will be used as the name of the created `NetworkAttachmentDefinition`.  The configuration in the created `NetworkAttachmentDefinition` should match the configuration added to `networks.operator.openshift.io/cluster`.
+
+NOTE: The macvlan configuration was updated for the following projects: `dev-project1, fm-project1, qa-project1, regression-project1`.  The following projects have been left to Gigamon to configure (for practice): `es-admin-project1,gigmo-admin-project1`
+
+[source,bash]
+----
+[root@sv7-ocp-bootstrap validation]# oc get net-attach-def -n sample-app
+NAME      AGE
+vlan708   63s
+[root@sv7-ocp-bootstrap validation]# oc describe net-attach-def vlan708 -n sample-app
+Name:         vlan708
+Namespace:    sample-app
+Labels:       <none>
+Annotations:  <none>
+API Version:  k8s.cni.cncf.io/v1
+Kind:         NetworkAttachmentDefinition
+Metadata:
+  Creation Timestamp:  2022-05-14T00:05:07Z
+  Generation:          1
+  Managed Fields:
+    API Version:  k8s.cni.cncf.io/v1
+    Fields Type:  FieldsV1
+    fieldsV1:
+      f:metadata:
+        f:ownerReferences:
+          .:
+          k:{"uid":"53c7dd40-3d79-4598-bc1e-f45154dd9ea1"}:
+      f:spec:
+        .:
+        f:config:
+    Manager:    cluster-network-operator
+    Operation:  Update
+    Time:       2022-05-14T00:05:07Z
+  Owner References:
+    API Version:           operator.openshift.io/v1
+    Block Owner Deletion:  true
+    Controller:            true
+    Kind:                  Network
+    Name:                  cluster
+    UID:                   53c7dd40-3d79-4598-bc1e-f45154dd9ea1
+  Resource Version:        5055697
+  UID:                     aec0c011-8539-4558-bf72-379bb48dd717
+Spec:
+  Config:  {
+  "cniVersion": "0.3.1",
+  "name": "vlan708",
+  "type": "macvlan",
+  "master": "bond0.708",
+  "mode": "bridge",
+  "ipam": {
+    "type": "whereabouts",
+    "range": "10.70.8.0/23",
+    "exclude": [
+       "10.70.8.0/24"
+    ]
+  }
+}
+Events:  <none>
+----
+
+To use the additional network, the following annotation must be added to any pod that needs the additional network interface.
+
+[source,bash]
+----
+k8s.v1.cni.cncf.io/networks: vlan708
+----
+
+After creation of the pod, the second interface will be included in the pod when viewed.
+
+[source,bash]
+----
+[root@sv7-ocp-bootstrap validation]# oc describe pod golang-http-macvlan-2-zfgkl
+Name:         golang-http-macvlan-2-zfgkl
+Namespace:    sample-app
+Priority:     0
+Node:         sv7-ocp-cmp02.sv7.eng.gigamon.com/10.70.2.65
+Start Time:   Fri, 13 May 2022 17:05:51 -0700
+Labels:       app=golang-http-macvlan
+              deployment=golang-http-macvlan-2
+              deploymentconfig=golang-http-macvlan
+              name=golang-http-macvlan
+Annotations:  k8s.ovn.org/pod-networks:
+                {"default":{"ip_addresses":["172.30.10.25/23","fd01:0:0:4::19/64"],"mac_address":"0a:58:ac:1e:0a:19","gateway_ips":["172.30.10.1","fd01:0:...
+              k8s.v1.cni.cncf.io/network-status:
+                [{
+                    "name": "ovn-kubernetes",
+                    "interface": "eth0",
+                    "ips": [
+                        "172.30.10.25",
+                        "fd01:0:0:4::19"
+                    ],
+                    "mac": "0a:58:ac:1e:0a:19",
+                    "default": true,
+                    "dns": {}
+                },{
+                    "name": "sample-app/vlan708",
+                    "interface": "net1",
+                    "ips": [
+                        "10.70.9.8"
+                    ],
+                    "mac": "ba:47:66:cd:d3:cd",
+                    "dns": {}
+                }]
+              k8s.v1.cni.cncf.io/networks: vlan708
+              k8s.v1.cni.cncf.io/networks-status:
+                [{
+                    "name": "ovn-kubernetes",
+                    "interface": "eth0",
+                    "ips": [
+                        "172.30.10.25",
+                        "fd01:0:0:4::19"
+                    ],
+                    "mac": "0a:58:ac:1e:0a:19",
+                    "default": true,
+                    "dns": {}
+                },{
+                    "name": "sample-app/vlan708",
+                    "interface": "net1",
+                    "ips": [
+                        "10.70.9.8"
+                    ],
+                    "mac": "ba:47:66:cd:d3:cd",
+                    "dns": {}
+                }]
+              openshift.io/deployment-config.latest-version: 2
+              openshift.io/deployment-config.name: golang-http-macvlan
+              openshift.io/deployment.name: golang-http-macvlan-2
+              openshift.io/scc: restricted
+Status:       Running
+IP:           172.30.10.25
+IPs:
+  IP:           172.30.10.25
+  IP:           fd01:0:0:4::19
+...
+...
+Events:
+  Type    Reason          Age   From               Message
+  ____    _____          ____   ____               _______
+  Normal  Scheduled       97s   default-scheduler  Successfully assigned sample-app/golang-http-macvlan-2-zfgkl to sv7-ocp-cmp02.sv7.eng.gigamon.com
+  Normal  AddedInterface  95s   multus             Add eth0 [172.30.10.25/23 fd01:0:0:4::19/64] from ovn-kubernetes
+  Normal  AddedInterface  95s   multus             Add net1 [10.70.9.8/23] from sample-app/vlan708
+  Normal  Pulling         95s   kubelet            Pulling image "bashayralabdullah/golang-http:v1.0"
+  Normal  Pulled          94s   kubelet            Successfully pulled image "bashayralabdullah/golang-http:v1.0" in 1.33142512s
+  Normal  Created         94s   kubelet            Created container golang-http-macvlan
+  Normal  Started         94s   kubelet            Started container golang-http-macvlan
+----
+
+VLAN 708 is providing DHCP addresses for IPV6, so no configuration needs to be made to enable that.
+
+[source,bash]
+----
+[root@sv7-ocp-bootstrap validation]# oc rsh golang-http-macvlan-2-zfgkl ip a s net1
+4: net1@if84: <BROADCAST,MULTICAST,UP,LOWER_UP> mtu 1500 qdisc noqueue state UP group default
+    link/ether ba:47:66:cd:d3:cd brd ff:ff:ff:ff:ff:ff link-netnsid 0
+    inet 10.70.9.8/23 brd 10.70.9.255 scope global net1
+       valid_lft forever preferred_lft forever
+    inet6 fc00:708:10:70:b847:66ff:fecd:d3cd/64 scope global dynamic mngtmpaddr
+       valid_lft 2591790sec preferred_lft 604590sec
+    inet6 fc00:702:10:70:b847:66ff:fecd:d3cd/64 scope global dynamic mngtmpaddr
+       valid_lft 2591790sec preferred_lft 604590sec
+    inet6 2001:708:10:70:b847:66ff:fecd:d3cd/64 scope global dynamic mngtmpaddr
+       valid_lft 2591790sec preferred_lft 604590sec
+    inet6 fe80::b847:66ff:fecd:d3cd/64 scope link
+       valid_lft forever preferred_lft forever
+----
+
+Now, pinging IPs on VLAN 708 in OpenStack shows that the pod is able to communicate to that non-routed LAN from a pod with appropriate macvlan interface configured.
+
+[source,bash]
+----
+[root@sv7-ocp-bootstrap validation]# oc rsh golang-http-macvlan-2-zfgkl ping -c 5 10.70.8.80
+PING 10.70.8.80 (10.70.8.80) 56(84) bytes of data.
+64 bytes from 10.70.8.80: icmp_seq=1 ttl=64 time=16.6 ms
+64 bytes from 10.70.8.80: icmp_seq=2 ttl=64 time=0.134 ms
+64 bytes from 10.70.8.80: icmp_seq=3 ttl=64 time=0.151 ms
+64 bytes from 10.70.8.80: icmp_seq=4 ttl=64 time=0.136 ms
+64 bytes from 10.70.8.80: icmp_seq=5 ttl=64 time=0.130 ms
+
+--- 10.70.8.80 ping statistics ---
+5 packets transmitted, 5 received, 0% packet loss, time 112ms
+rtt min/avg/max/mdev = 0.130/3.439/16.645/6.603 ms
+[root@sv7-ocp-bootstrap validation]# oc rsh golang-http-macvlan-2-zfgkl ping6 -c 5 2001:708:10:70:f816:3eff:fe70:a33f
+PING 2001:708:10:70:f816:3eff:fe70:a33f(2001:708:10:70:f816:3eff:fe70:a33f) 56 data bytes
+64 bytes from 2001:708:10:70:f816:3eff:fe70:a33f: icmp_seq=1 ttl=64 time=8.04 ms
+64 bytes from 2001:708:10:70:f816:3eff:fe70:a33f: icmp_seq=2 ttl=64 time=0.066 ms
+64 bytes from 2001:708:10:70:f816:3eff:fe70:a33f: icmp_seq=3 ttl=64 time=0.095 ms
+64 bytes from 2001:708:10:70:f816:3eff:fe70:a33f: icmp_seq=4 ttl=64 time=0.093 ms
+64 bytes from 2001:708:10:70:f816:3eff:fe70:a33f: icmp_seq=5 ttl=64 time=0.164 ms
+
+--- 2001:708:10:70:f816:3eff:fe70:a33f ping statistics ---
+5 packets transmitted, 5 received, 0% packet loss, time 63ms
+rtt min/avg/max/mdev = 0.066/1.691/8.040/3.174 ms
+----
+
+Configuration files:
+`10.70.2.60:/home/gimo/clusterconfigs/clusterconfigs/macvlan`
+
+= User Authentication
+
+Users have been created using the Htpasswd Provider.  Users must be created using the `bcrypt` method (`-B`).
+
+----
+htpasswd -c -B -b </path/to/users.htpasswd> <user_name> <password>
+----
+
+After the initial htpasswd file has been created, append additional users to the same file.
+----
+htpasswd -B -b </path/to/users.htpasswd> <user_name> <password>
+----
+
+Create a secret container the htpasswd file in the `openshift-config` project.
+
+----
+oc create secret generic htpass-secret --from-file=htpasswd=<path_to_users.htpasswd> -n openshift-config 
+----
+
+Create an Htpasswd oauth provider.  The `name` under `identityProviders` may be customized as desired.  `fileData.name` should match the name of the secret created in the previous step.
+
+----
+apiVersion: config.openshift.io/v1
+kind: OAuth
+metadata:
+  name: cluster
+spec:
+  identityProviders:
+  - name: Gigamon htpasswd
+    mappingMethod: claim
+    type: HTPasswd
+    htpasswd:
+      fileData:
+        name: htpass-secret
+----
+
+Apply the CR and wait for the pods in `openshift-authentication` to restart.
+----
+oc apply -f </path/to/CR>
+----
+
+To update users and/or passwords, you must extract the secret your created to a file.  Then update the htpaswwd file, and replace the existing secret with the new file.
+----
+oc get secret htpass-secret -ojsonpath={.data.htpasswd} -n openshift-config | base64 --decode > users.htpasswd
+
+# add user
+htpasswd -bB users.htpasswd <username> <password>
+
+# delete user
+htpasswd -D users.htpasswd <username>
+
+oc create secret generic htpass-secret --from-file=htpasswd=users.htpasswd --dry-run=client -o yaml -n openshift-config | oc replace -f -
+----
+
+Alternatively, you can manage users in the Web UI.  Go to the `openshift-config` project, click `Workloads->Secrets`.  Find the secret for your htpasswd file in the list, and click the vertical ellipsis on the right, and select `Edit Secret`.  Here you can update the contents of the htpasswd file directly.  You must still use the `htpasswd` command to generate the correct string to add to the file sercret here.
+
+Configuration files:
+`10.70.2.60:/home/gimo/clusterconfigs/clusterconfigs/htpasswd-auth`

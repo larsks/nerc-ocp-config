@@ -1,0 +1,56 @@
+- hosts: localhost
+  gather_facts: false
+  vars:
+    vault_cluster: nerc-ocp-infra
+    external_clusters:
+      - nerc-ocp-prod
+      - nerc-ocp-test
+  tasks:
+    - name: Avoid being a dum dum
+      fail:
+        msg: "Incorrect vault credentials"
+      when: >-
+        vault_cluster not in lookup("env", "VAULT_ADDR")
+
+    - name: Get enabled secret stores
+      command: >-
+        vault secrets list -format json
+      register: enabled_stores
+
+    - name: Create secret store
+      command: >-
+        vault secrets enable -version=2 -path "nerc" kv
+      when: >-
+        "nerc/" not in (enabled_stores.stdout|from_json)
+
+    - name: Install common policies
+      command: >-
+        vault policy write "{{ (item|basename|splitext)[0] }}" "{{ item }}"
+      loop: "{{ query('fileglob', 'common_policies/*.hcl') }}"
+
+    - name: Install per-cluster policies
+      tags: [vault-readonly-policy]
+      include_role:
+        name: vault-readonly-policy
+      loop: "{{ all_clusters|flatten }}"
+      loop_control:
+        loop_var: cluster_name
+      vars:
+        all_clusters:
+          - "{{ vault_cluster }}"
+          - "{{ external_clusters }}"
+
+    - name: Configure auth for internal cluster
+      tags: [vault-kubernetes-auth]
+      include_role:
+        name: vault-kubernetes-auth
+      vars:
+        cluster_name: nerc-ocp-infra
+
+    - name: Configure auth for external cluster
+      tags: [vault-approle-auth]
+      include_role:
+        name: vault-approle-auth
+      loop: "{{ external_clusters }}"
+      loop_control:
+        loop_var: cluster_name

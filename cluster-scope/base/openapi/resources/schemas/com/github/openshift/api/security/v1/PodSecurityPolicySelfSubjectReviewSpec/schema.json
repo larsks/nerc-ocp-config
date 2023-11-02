@@ -1,0 +1,22 @@
+{
+  "apiVersion": "v3",
+  "kind": "OpenAPISchema",
+  "metadata": {
+    "name": "com.github.openshift.api.security.v1.PodSecurityPolicySelfSubjectReviewSpec"
+  },
+  "definitions": {
+    "com.github.openshift.api.security.v1.PodSecurityPolicySelfSubjectReviewSpec": {
+      "description": "PodSecurityPolicySelfSubjectReviewSpec contains specification for PodSecurityPolicySelfSubjectReview.",
+      "properties": {
+        "template": {
+          "$ref": "#/definitions/io.k8s.api.core.v1.PodTemplateSpec",
+          "description": "template is the PodTemplateSpec to check."
+        }
+      },
+      "required": [
+        "template"
+      ],
+      "type": "object"
+    }
+  }
+}

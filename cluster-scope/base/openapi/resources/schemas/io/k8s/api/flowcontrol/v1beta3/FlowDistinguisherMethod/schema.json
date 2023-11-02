@@ -1,0 +1,22 @@
+{
+  "apiVersion": "v3",
+  "kind": "OpenAPISchema",
+  "metadata": {
+    "name": "io.k8s.api.flowcontrol.v1beta3.FlowDistinguisherMethod"
+  },
+  "definitions": {
+    "io.k8s.api.flowcontrol.v1beta3.FlowDistinguisherMethod": {
+      "description": "FlowDistinguisherMethod specifies the method of a flow distinguisher.",
+      "properties": {
+        "type": {
+          "description": "`type` is the type of flow distinguisher method The supported types are \"ByUser\" and \"ByNamespace\". Required.",
+          "type": "string"
+        }
+      },
+      "required": [
+        "type"
+      ],
+      "type": "object"
+    }
+  }
+}

@@ -1,0 +1,19 @@
+{
+  "apiVersion": "v3",
+  "kind": "OpenAPISchema",
+  "metadata": {
+    "name": "com.github.openshift.api.template.v1.TemplateInstanceObject"
+  },
+  "definitions": {
+    "com.github.openshift.api.template.v1.TemplateInstanceObject": {
+      "description": "TemplateInstanceObject references an object created by a TemplateInstance.",
+      "properties": {
+        "ref": {
+          "$ref": "#/definitions/io.k8s.api.core.v1.ObjectReference",
+          "description": "ref is a reference to the created object.  When used under .spec, only name and namespace are used; these can contain references to parameters which will be substituted following the usual rules."
+        }
+      },
+      "type": "object"
+    }
+  }
+}

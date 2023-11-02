@@ -1,0 +1,19 @@
+{
+  "apiVersion": "v3",
+  "kind": "OpenAPISchema",
+  "metadata": {
+    "name": "com.github.openshift.api.build.v1.BuildStatusOutput"
+  },
+  "definitions": {
+    "com.github.openshift.api.build.v1.BuildStatusOutput": {
+      "description": "BuildStatusOutput contains the status of the built image.",
+      "properties": {
+        "to": {
+          "$ref": "#/definitions/com.github.openshift.api.build.v1.BuildStatusOutputTo",
+          "description": "to describes the status of the built image being pushed to a registry."
+        }
+      },
+      "type": "object"
+    }
+  }
+}

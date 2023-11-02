@@ -1,0 +1,22 @@
+{
+  "apiVersion": "v3",
+  "kind": "OpenAPISchema",
+  "metadata": {
+    "name": "com.github.openshift.api.build.v1.SecretLocalReference"
+  },
+  "definitions": {
+    "com.github.openshift.api.build.v1.SecretLocalReference": {
+      "description": "SecretLocalReference contains information that points to the local secret being used",
+      "properties": {
+        "name": {
+          "description": "Name is the name of the resource in the same namespace being referenced",
+          "type": "string"
+        }
+      },
+      "required": [
+        "name"
+      ],
+      "type": "object"
+    }
+  }
+}

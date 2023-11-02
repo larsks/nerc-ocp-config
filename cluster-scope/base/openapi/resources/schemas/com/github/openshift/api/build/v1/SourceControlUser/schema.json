@@ -1,0 +1,23 @@
+{
+  "apiVersion": "v3",
+  "kind": "OpenAPISchema",
+  "metadata": {
+    "name": "com.github.openshift.api.build.v1.SourceControlUser"
+  },
+  "definitions": {
+    "com.github.openshift.api.build.v1.SourceControlUser": {
+      "description": "SourceControlUser defines the identity of a user of source control",
+      "properties": {
+        "email": {
+          "description": "email of the source control user",
+          "type": "string"
+        },
+        "name": {
+          "description": "name of the source control user",
+          "type": "string"
+        }
+      },
+      "type": "object"
+    }
+  }
+}

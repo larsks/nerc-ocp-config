@@ -1,0 +1,19 @@
+{
+  "apiVersion": "v3",
+  "kind": "OpenAPISchema",
+  "metadata": {
+    "name": "io.nmstate.v1beta1.NodeNetworkConfigurationEnactment"
+  },
+  "definitions": {
+    "io.nmstate.v1beta1.NodeNetworkConfigurationEnactment": {
+      "type": "object",
+      "x-kubernetes-group-version-kind": [
+        {
+          "group": "nmstate.io",
+          "kind": "NodeNetworkConfigurationEnactment",
+          "version": "v1beta1"
+        }
+      ]
+    }
+  }
+}

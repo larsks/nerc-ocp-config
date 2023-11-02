@@ -1,0 +1,28 @@
+{
+  "apiVersion": "v3",
+  "kind": "OpenAPISchema",
+  "metadata": {
+    "name": "com.github.openshift.api.image.v1.ImageLayerData"
+  },
+  "definitions": {
+    "com.github.openshift.api.image.v1.ImageLayerData": {
+      "description": "ImageLayerData contains metadata about an image layer.",
+      "properties": {
+        "mediaType": {
+          "description": "MediaType of the referenced object.",
+          "type": "string"
+        },
+        "size": {
+          "description": "Size of the layer in bytes as defined by the underlying store. This field is optional if the necessary information about size is not available.",
+          "format": "int64",
+          "type": "integer"
+        }
+      },
+      "required": [
+        "size",
+        "mediaType"
+      ],
+      "type": "object"
+    }
+  }
+}

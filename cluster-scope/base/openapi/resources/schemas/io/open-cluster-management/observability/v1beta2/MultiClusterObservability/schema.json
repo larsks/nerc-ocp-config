@@ -1,0 +1,19 @@
+{
+  "apiVersion": "v3",
+  "kind": "OpenAPISchema",
+  "metadata": {
+    "name": "io.open-cluster-management.observability.v1beta2.MultiClusterObservability"
+  },
+  "definitions": {
+    "io.open-cluster-management.observability.v1beta2.MultiClusterObservability": {
+      "type": "object",
+      "x-kubernetes-group-version-kind": [
+        {
+          "group": "observability.open-cluster-management.io",
+          "kind": "MultiClusterObservability",
+          "version": "v1beta2"
+        }
+      ]
+    }
+  }
+}

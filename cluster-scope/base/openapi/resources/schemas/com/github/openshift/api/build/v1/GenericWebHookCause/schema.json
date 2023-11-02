@@ -1,0 +1,23 @@
+{
+  "apiVersion": "v3",
+  "kind": "OpenAPISchema",
+  "metadata": {
+    "name": "com.github.openshift.api.build.v1.GenericWebHookCause"
+  },
+  "definitions": {
+    "com.github.openshift.api.build.v1.GenericWebHookCause": {
+      "description": "GenericWebHookCause holds information about a generic WebHook that triggered a build.",
+      "properties": {
+        "revision": {
+          "$ref": "#/definitions/com.github.openshift.api.build.v1.SourceRevision",
+          "description": "revision is an optional field that stores the git source revision information of the generic webhook trigger when it is available."
+        },
+        "secret": {
+          "description": "secret is the obfuscated webhook secret that triggered a build.",
+          "type": "string"
+        }
+      },
+      "type": "object"
+    }
+  }
+}

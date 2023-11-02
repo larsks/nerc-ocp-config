@@ -1,0 +1,26 @@
+{
+  "apiVersion": "v3",
+  "kind": "OpenAPISchema",
+  "metadata": {
+    "name": "com.github.openshift.api.build.v1.DockerStrategyOptions"
+  },
+  "definitions": {
+    "com.github.openshift.api.build.v1.DockerStrategyOptions": {
+      "description": "DockerStrategyOptions contains extra strategy options for container image builds",
+      "properties": {
+        "buildArgs": {
+          "description": "Args contains any build arguments that are to be passed to Docker.  See https://docs.docker.com/engine/reference/builder/#/arg for more details",
+          "items": {
+            "$ref": "#/definitions/io.k8s.api.core.v1.EnvVar"
+          },
+          "type": "array"
+        },
+        "noCache": {
+          "description": "noCache overrides the docker-strategy noCache option in the build config",
+          "type": "boolean"
+        }
+      },
+      "type": "object"
+    }
+  }
+}

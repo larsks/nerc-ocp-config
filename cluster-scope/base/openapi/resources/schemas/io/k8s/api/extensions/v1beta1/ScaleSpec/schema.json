@@ -1,0 +1,20 @@
+{
+  "apiVersion": "v3",
+  "kind": "OpenAPISchema",
+  "metadata": {
+    "name": "io.k8s.api.extensions.v1beta1.ScaleSpec"
+  },
+  "definitions": {
+    "io.k8s.api.extensions.v1beta1.ScaleSpec": {
+      "description": "describes the attributes of a scale subresource",
+      "properties": {
+        "replicas": {
+          "description": "desired number of instances for the scaled object.",
+          "format": "int32",
+          "type": "integer"
+        }
+      },
+      "type": "object"
+    }
+  }
+}

@@ -1,0 +1,29 @@
+{
+  "apiVersion": "v3",
+  "kind": "OpenAPISchema",
+  "metadata": {
+    "name": "com.github.operator-framework.api.pkg.operators.v1alpha1.APIResourceReference"
+  },
+  "definitions": {
+    "com.github.operator-framework.api.pkg.operators.v1alpha1.APIResourceReference": {
+      "description": "APIResourceReference is a Kubernetes resource type used by a custom resource",
+      "properties": {
+        "kind": {
+          "type": "string"
+        },
+        "name": {
+          "type": "string"
+        },
+        "version": {
+          "type": "string"
+        }
+      },
+      "required": [
+        "name",
+        "kind",
+        "version"
+      ],
+      "type": "object"
+    }
+  }
+}

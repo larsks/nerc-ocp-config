@@ -1,0 +1,26 @@
+apiVersion: kustomize.config.k8s.io/v1beta1
+kind: Kustomization
+resources:
+- schemas
+
+patches:
+- target:
+    kind: OpenAPISchema
+    name: io.openshift.config.v1.OAuth
+  patch: |
+    - path: /definitions/io.openshift.config.v1.OAuth/properties/spec/properties/identityProviders/x-kubernetes-patch-strategy
+      op: add
+      value: merge
+    - path: /definitions/io.openshift.config.v1.OAuth/properties/spec/properties/identityProviders/x-kubernetes-patch-merge-key
+      op: add
+      value: name
+- target:
+    kind: OpenAPISchema
+    name: io.openshift.multicluster.v1.MultiClusterEngine
+  patch: |
+    - path: /definitions/io.openshift.multicluster.v1.MultiClusterEngine/properties/spec/properties/overrides/properties/components/x-kubernetes-patch-merge-key
+      op: add
+      value: name
+    - path: /definitions/io.openshift.multicluster.v1.MultiClusterEngine/properties/spec/properties/overrides/properties/components/x-kubernetes-patch-strategy
+      op: add
+      value: merge

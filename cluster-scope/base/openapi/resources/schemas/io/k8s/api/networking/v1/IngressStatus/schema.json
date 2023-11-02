@@ -1,0 +1,19 @@
+{
+  "apiVersion": "v3",
+  "kind": "OpenAPISchema",
+  "metadata": {
+    "name": "io.k8s.api.networking.v1.IngressStatus"
+  },
+  "definitions": {
+    "io.k8s.api.networking.v1.IngressStatus": {
+      "description": "IngressStatus describe the current state of the Ingress.",
+      "properties": {
+        "loadBalancer": {
+          "$ref": "#/definitions/io.k8s.api.networking.v1.IngressLoadBalancerStatus",
+          "description": "LoadBalancer contains the current status of the load-balancer."
+        }
+      },
+      "type": "object"
+    }
+  }
+}

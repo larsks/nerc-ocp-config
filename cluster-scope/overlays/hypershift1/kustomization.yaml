@@ -5,3 +5,119 @@ commonLabels:
 
 resources:
 - clusterversion.yaml
+- ../common
+
+- ../../bundles/external-secrets-clustersecretstore
+- ../../bundles/acm
+- ../../bundles/metallb
+- ../../base/agent-install.openshift.io/agentserviceconfigs/agent
+- clusterissuers
+- certificates
+- console
+- clusterrolebindings
+
+components:
+  - ../../components/nerc-oauth-github
+  - ../../components/nerc-certificate-issuer
+
+patches:
+- path: clustersecretstores/nerc-cluster-secrets_patch.yaml
+- patch: |
+    apiVersion: config.openshift.io/v1
+    kind: OAuth
+    metadata:
+      name: cluster
+    spec:
+      identityProviders:
+      - name: github
+        github:
+          clientID: 1a8790fb1d1c5f46c510
+- target:
+    kind: ExternalSecret
+    name: github-client-secret
+  patch: |
+    - op: replace
+      path: /spec/data/0/remoteRef/key
+      value: nerc/hypershift1/openshift-config/github-client-secret
+- target:
+    kind: ExternalSecret
+    name: aws-route53-credentials
+  patch: |
+    - op: replace
+      path: /spec/dataFrom/0/extract/key
+      value: nerc/hypershift1/aws-route53-credentials
+- target:
+    kind: APIServer
+    name: cluster
+  patch: |
+    - op: replace
+      path: /spec/servingCerts/namedCertificates/0/names/0
+      value: api.hypershift1.int.massopen.cloud
+- target:
+    kind: ExternalSecret
+  patch: |
+    - op: replace
+      path: /spec/secretStoreRef
+      value:
+        kind: ClusterSecretStore
+        name: nerc-cluster-secrets
+- target:
+    kind: ExternalSecret
+    name: aws-route53-credentials
+  patch: |
+    - op: add
+      path: /metadata/namespace
+      value: openshift-operators
+    - op: replace
+      path: /spec/dataFrom/0/extract/key
+      value: nerc/hypershift1/openshift-operators/aws-route53-credentials
+- patch: |
+    apiVersion: operators.coreos.com/v1alpha1
+    kind: Subscription
+    metadata:
+        name: acm
+    spec:
+        channel: release-2.8
+- patch: |
+    apiVersion: multicluster.openshift.io/v1
+    kind: MultiClusterEngine
+    metadata:
+      name: multiclusterengine
+    spec:
+      overrides:
+        components:
+        - enabled: true
+          name: hypershift-preview
+- patch: |
+    apiVersion: metal3.io/v1alpha1
+    kind: Provisioning
+    metadata:
+      name: provisioning-configuration
+    spec:
+      watchAllNamespaces: true
+- patch: |
+    apiVersion: operators.coreos.com/v1alpha1
+    kind: Subscription
+    metadata:
+      name: acm
+      namespace: open-cluster-management
+    spec:
+      channel: release-2.9
+- patch: |
+    apiVersion: agent-install.openshift.io/v1beta1
+    kind: AgentServiceConfig
+    metadata:
+      name: agent
+    spec:
+      imageStorage:
+        resources:
+          requests:
+            storage: 75Gi
+- patch: |
+    apiVersion: operators.coreos.com/v1alpha1
+    kind: Subscription
+    metadata:
+      name: acm
+      namespace: open-cluster-management
+    spec:
+      channel: release-2.9

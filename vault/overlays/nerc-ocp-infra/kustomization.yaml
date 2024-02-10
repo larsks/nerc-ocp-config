@@ -1,9 +1,11 @@
 apiVersion: kustomize.config.k8s.io/v1beta1
 kind: Kustomization
+namespace: vault
+
 resources:
   - ../../base
   - backup-job
-namespace: vault
+  - ca-trust-bundle
 
 patches:
   - target:
@@ -13,3 +15,21 @@ patches:
       - op: add
         path: /spec/volumeClaimTemplates/0/spec/storageClassName
         value: kubevirt-hostpath-provisioner
+  - patch: |
+      apiVersion: apps/v1
+      kind: StatefulSet
+      metadata:
+        name: nerc-vault
+        namespace: vault
+      spec:
+        template:
+          spec:
+            containers:
+            - name: vault
+              volumeMounts:
+              - mountPath: /etc/ssl/certs/ca-certificates.crt
+                name: ca-trust-bundle
+            volumes:
+            - name: ca-trust-bundle
+              configMap:
+                name: ca-trust-bundle

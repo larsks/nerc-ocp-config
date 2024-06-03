@@ -11,6 +11,7 @@ resources:
 - ../../bundles/acm
 - ../../bundles/metallb
 - ../../base/agent-install.openshift.io/agentserviceconfigs/agent
+- ../../bundles/patch-operator
 - clusterissuers
 - certificates
 - console

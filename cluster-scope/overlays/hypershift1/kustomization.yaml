@@ -16,6 +16,7 @@ resources:
 - console
 - clusterrolebindings
 - machineconfigs
+- nodenetworkconfigurationpolicies
 
 components:
   - ../../components/nerc-oauth-github

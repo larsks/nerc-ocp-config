@@ -19,6 +19,7 @@ resources:
 - machineconfigs
 - nodenetworkconfigurationpolicies
 - externalsecrets
+- feature/odf
 
 components:
   - ../../components/nerc-oauth-github
@@ -134,3 +135,12 @@ patches:
     spec:
       # This cluster is managed by nerc-ocp-infra
       disableHubSelfManagement: true
+
+- target:
+    kind: Subscription
+    name: odf-operator
+    namespace: openshift-storage
+  patch: |
+    - op: replace
+      path: /spec/channel
+      value: stable-4.15

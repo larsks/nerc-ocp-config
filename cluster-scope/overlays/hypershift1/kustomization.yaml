@@ -19,6 +19,7 @@ resources:
 - machineconfigs
 - nodenetworkconfigurationpolicies
 - feature/odf
+- externalsecrets
 
 components:
   - ../../components/nerc-oauth-github

@@ -6,7 +6,7 @@ metadata:
     app.kubernetes.io/name: vault
 spec:
   size: 3
-  image: hashicorp/vault:1.15.5
+  image: docker.io/hashicorp/vault:1.15.5
 
   serviceAccount: vault
   serviceType: ClusterIP

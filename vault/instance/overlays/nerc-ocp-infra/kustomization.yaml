@@ -6,6 +6,33 @@ commonLabels:
 resources:
 - ../../base
 - vault-compat-route.yaml
+- trigger-configure-vault-job.yaml
+- configure-vault-cronjob.yaml
+
+configMapGenerator:
+- name: ca-certs
+  options:
+    disableNameSuffixHash: true
+  files:
+  - certs/letsencrypt.crt
+  - certs/nerc-internal-root.crt
+
+- name: vault-config
+  options:
+    disableNameSuffixHash: true
+  files:
+  - config/backup-job.yaml
+  - config/groups.yaml
+  - config/hypershift1.yaml
+  - config/nerc-ocp-infra.yaml
+  - config/nerc-ocp-obs.yaml
+  - config/nerc-ocp-prod.yaml
+  - config/nerc-ocp-test.yaml
+  - config/nerc-ocp-beta-test.yaml
+  - config/oidc.yaml
+  - config/policies.yaml
+  - config/secrets.yaml
+  - config/pki-nerc.yaml
 
 patches:
 - patch: |
@@ -26,3 +53,13 @@ patches:
       # ca.crt in the following namespaces.
       caNamespaces:
         - "external-secrets-operator"
+
+- patch: |
+    apiVersion: external-secrets.io/v1beta1
+    kind: ExternalSecret
+    metadata:
+      name: vault-backup-s3-endpoint
+    spec:
+      dataFrom:
+        - extract:
+            key: nerc/nerc-ocp-infra/vault/vault-backup-s3-endpoint

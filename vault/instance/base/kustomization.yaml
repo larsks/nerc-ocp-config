@@ -12,6 +12,7 @@ resources:
 - vault-allow-vault-scc.yaml
 - vault-ingress-service.yaml
 - route.yaml
+- backup-job
 
 configurations:
   - namespace-transformer.yaml

@@ -7,10 +7,8 @@ commonLabels:
 resources:
   - externalsecret.yaml
   - pvc.yaml
-  - rolebinding.yaml
   - serviceaccount.yaml
-  - task.yaml
-  - trigger
+  - cronjob.yaml
 
 configMapGenerator:
   - name: vault-backup-config
@@ -25,4 +23,3 @@ configMapGenerator:
     files:
       - scripts/create-snapshot.sh
       - scripts/backup-to-s3.sh
-      - scripts/cleanup-taskruns.sh

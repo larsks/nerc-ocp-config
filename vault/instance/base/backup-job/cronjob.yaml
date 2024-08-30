@@ -1,0 +1,97 @@
+apiVersion: batch/v1
+kind: CronJob
+metadata:
+  name: backup-vault
+spec:
+  schedule: "0 1,13 * * *"
+  successfulJobsHistoryLimit: 1
+  failedJobsHistoryLimit: 1
+  jobTemplate:
+    spec:
+      template:
+        metadata:
+          name: backup-vault
+        spec:
+          serviceAccountName: backup-job
+
+          volumes:
+
+          # This is where we store snapshots locally
+          - name: snapshots
+            persistentVolumeClaim:
+              claimName: vault-snapshots
+
+          # All of our scripts are here
+          - name: backup-scripts
+            configMap:
+              name: backup-scripts
+
+          # This has the vault ca certificate
+          - name: vault-tls
+            secret:
+              secretName: vault-tls
+
+          # This is an ephemeral writeable directory
+          - name: workspace
+            emptyDir: {}
+
+          initContainers:
+
+          # Create a new vault snapshot in the /snapshots directory
+          - name: create-snapshot
+            image: docker.io/hashicorp/vault:1.15.5
+            workingDir: /workspace
+            volumeMounts:
+            - name: workspace
+              mountPath: /workspace
+            - name: vault-tls
+              mountPath: /vault/tls
+            - name: snapshots
+              mountPath: /snapshots
+            - name: backup-scripts
+              mountPath: /scripts
+            env:
+            - name: VAULT_CACERT
+              value: /vault/tls/ca.crt
+            - name: VAULT_ADDR
+              value: https://vault:8200
+            - name: SNAPSHOT_PATH
+              value: /snapshots
+            command:
+            - /bin/sh
+            - -c
+            - |
+              #!/bin/sh
+              exec sh /scripts/create-snapshot.sh
+
+          containers:
+
+          # This synchronizes the local snapshots with an S3 bucket (and
+          # takes care of expiring older snapshots).
+          - name: backup-to-s3
+            image: docker.io/minio/mc:RELEASE.2024-02-09T22-18-24Z
+            workingDir: /workspace
+            volumeMounts:
+            - name: snapshots
+              mountPath: /snapshots
+            - name: backup-scripts
+              mountPath: /scripts
+            - name: workspace
+              mountPath: /workspace
+            env:
+              - name: SNAPSHOT_PATH
+                value: /snapshots
+              - name: HOME
+                value: /workspace
+            envFrom:
+              - secretRef:
+                  name: vault-backup-s3-endpoint
+              - configMapRef:
+                  name: vault-backup-config
+            command:
+            - /bin/sh
+            - -c
+            - |
+              exec bash /scripts/backup-to-s3.sh
+
+          restartPolicy: Never

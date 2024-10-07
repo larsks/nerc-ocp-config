@@ -21,4 +21,4 @@ spec:
             key: AWS_SECRET_ACCESS_KEY
       selector:
         dnsZones:
-        - int.massopen.cloud
+        - hypershift1.nerc.mghpcc.org

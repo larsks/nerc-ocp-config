@@ -3,13 +3,13 @@ kind: Ingress
 metadata:
   name: cluster
 spec:
-  domain: apps.hypershift1.int.massopen.cloud
+  domain: apps.hypershift1.nerc.mghpcc.org
   loadBalancer:
     platform:
       type: ""
   componentRoutes:
   - name: console
     namespace: openshift-console
-    hostname: console.hypershift1.int.massopen.cloud
+    hostname: console.hypershift1.nerc.mghpcc.org
     servingCertKeyPairSecret:
       name: console-certificate

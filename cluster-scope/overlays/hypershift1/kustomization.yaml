@@ -52,7 +52,7 @@ patches:
   patch: |
     - op: replace
       path: /spec/servingCerts/namedCertificates/0/names/0
-      value: api.hypershift1.int.massopen.cloud
+      value: api.hypershift1.nerc.mghpcc.org
 - target:
     kind: ExternalSecret
   patch: |

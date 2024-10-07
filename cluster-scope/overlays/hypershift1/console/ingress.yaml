@@ -9,10 +9,10 @@ spec:
   ingressClassName: openshift-default
   tls:
   - hosts:
-      - console.hypershift1.int.massopen.cloud
+      - console.hypershift1.nerc.mghpcc.org
     secretName: console-alias-certificate
   rules:
-  - host: console.hypershift1.int.massopen.cloud
+  - host: console.hypershift1.nerc.mghpcc.org
     http:
       paths:
       - backend:

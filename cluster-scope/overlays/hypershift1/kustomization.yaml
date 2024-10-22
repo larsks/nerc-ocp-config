@@ -79,3 +79,17 @@ patches:
     - op: replace
       path: /spec/channel
       value: stable-4.16
+- target:
+    kind: ClusterIssuer
+    name: letsencrypt-production-dns01
+  patch: |
+    - path: /spec/acme/solvers/0/selector/dnsZones/0
+      op: replace
+      value: hypershift1.nerc.mghpcc.org
+- target:
+    kind: ClusterIssuer
+    name: letsencrypt-staging-dns01
+  patch: |
+    - path: /spec/acme/solvers/0/selector/dnsZones/0
+      op: replace
+      value: hypershift1.nerc.mghpcc.org

@@ -53,6 +53,15 @@ patches:
       - name: github
         github:
           clientID: 1a8790fb1d1c5f46c510
+      - name: innabox
+        type: GitHub
+        mappingMethod: claim
+        github:
+          clientID: Ov23liC8gchXAkOQXKOk
+          clientSecret:
+            name: innabox-client-secret
+          teams:
+          - innabox/fulfillment-wg
 - target:
     kind: ExternalSecret
     name: github-client-secret

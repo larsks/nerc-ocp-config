@@ -123,7 +123,7 @@ patches:
     patch: |
       - op: replace
         path: /spec/channel
-        value: gitops-1.17
+        value: gitops-1.19
 
   # per: https://docs.openshift.com/container-platform/4.17/hosted_control_planes/hcp-deploy/hcp-deploy-virt.html
   - target:

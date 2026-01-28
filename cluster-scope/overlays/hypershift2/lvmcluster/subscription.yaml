@@ -4,6 +4,7 @@ metadata:
   name: lvms
   namespace: openshift-storage
 spec:
+  channel: "stable-4.19"
   installPlanApproval: Automatic
   name: lvms-operator
   source: redhat-operators

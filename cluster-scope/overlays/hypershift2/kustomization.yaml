@@ -160,7 +160,7 @@ patches:
     patch: |
       - op: replace
         path: /spec/channel
-        value: stable-2.5
+        value: stable-2.6
 
   - patch: |
       apiVersion: operators.coreos.com/v1

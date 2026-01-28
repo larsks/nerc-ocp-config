@@ -108,7 +108,7 @@ patches:
     patch: |
       - op: replace
         path: /spec/channel
-        value: stable-4.18
+        value: stable-4.19
   - target:
       kind: Subscription
       name: acm

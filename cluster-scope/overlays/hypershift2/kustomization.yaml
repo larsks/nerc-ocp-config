@@ -116,7 +116,7 @@ patches:
     patch: |
       - op: replace
         path: /spec/channel
-        value: release-2.13
+        value: release-2.15
   - target:
       kind: Subscription
       name: openshift-gitops-operator

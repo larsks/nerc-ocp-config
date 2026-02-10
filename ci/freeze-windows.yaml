@@ -9,3 +9,10 @@
 #       reason: "Description of the freeze"
 
 windows:
+  - start: "2026-02-09T00:00:00Z"
+    end: "2026-03-12T23:59:59Z"
+    reason: "NERC maintenance freeze"
+
+  - start: "2026-02-28T13:00:00Z"
+    end: "2026-04-01T22:00:00Z"
+    reason: "Quarterly network change window"

@@ -10,7 +10,7 @@
 
 windows:
   # Example freeze windows - replace with actual freeze periods
-  - start: "2026-03-10T00:00:00Z"
+  - start: "2026-02-09T00:00:00Z"
     end: "2026-03-12T23:59:59Z"
     reason: "NERC maintenance freeze"
 

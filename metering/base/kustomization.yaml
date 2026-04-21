@@ -5,6 +5,8 @@ commonLabels:
   app.kubernetes.io/part-of: metering
 
 resources:
-- kafka.yaml
-- kafkatopics.yaml
-- kafkausers.yaml
+  - kafka.yaml
+  - kafkatopics.yaml
+  - kafkausers.yaml
+  - rbac.yaml
+  - reconciler-cronjob.yaml
